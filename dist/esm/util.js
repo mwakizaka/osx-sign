@@ -113,8 +113,9 @@ export async function validateOptsPlatform(opts) {
 export async function walkAsync(dirPath) {
     debugLog('Walking... ' + dirPath);
     async function _walkAsync(dirPath) {
+        const res = [];
         const children = await fs.readdir(dirPath);
-        return await Promise.all(children.map(async (child) => {
+        for (const child of children) {
             const filePath = path.resolve(dirPath, child);
             const stat = await fs.stat(filePath);
             if (stat.isFile()) {
@@ -122,9 +123,10 @@ export async function walkAsync(dirPath) {
                     case '.cstemp': // Temporary file generated from past codesign
                         debugLog('Removing... ' + filePath);
                         await fs.remove(filePath);
-                        return null;
+                        break;
                     default:
-                        return await getFilePathIfBinary(filePath);
+                        await getFilePathIfBinary(filePath) && res.push(filePath);
+                        break;
                 }
             }
             else if (stat.isDirectory() && !stat.isSymbolicLink()) {
@@ -134,10 +136,10 @@ export async function walkAsync(dirPath) {
                     case '.framework': // Framework
                         walkResult.push(filePath);
                 }
-                return walkResult;
+                res.push(walkResult);
             }
-            return null;
-        }));
+        }
+        return res;
     }
     const allPaths = await _walkAsync(dirPath);
     return compactFlattenedList(allPaths);
